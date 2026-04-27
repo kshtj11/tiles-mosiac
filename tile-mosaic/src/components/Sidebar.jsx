@@ -533,7 +533,7 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
             </div>
             <input 
               type="range" 
-              min="0.01" max="0.5" step="0.01" 
+              min="0.01" max="1" step="0.01" 
               value={settings.vibrantSpread} 
               onChange={(e) => updateSetting('vibrantSpread', parseFloat(e.target.value))} 
             />

@@ -1,29 +1,35 @@
-export function getTileAtGradient(t, line, metadata, vibrantMetadata, settings) {
-  // Check for vibrant stops first
-  if (vibrantMetadata && settings && settings.vibrantStops) {
-    const stops = Object.keys(settings.vibrantStops).map(id => ({
-      id,
-      t: settings.vibrantStops[id].t
-    }));
-    
-    if (stops.length > 0) {
-      let closestStop = null;
-      let minDiff = Infinity;
-      for (const stop of stops) {
-        const diff = Math.abs(t - stop.t);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestStop = stop;
-        }
-      }
-      
-      const spread = settings.vibrantSpread || 0.05;
-      if (minDiff <= spread) {
-        const vibrantTile = vibrantMetadata.find(v => v.id === closestStop.id);
-        if (vibrantTile) return vibrantTile;
-      }
+export function getVibrantOverride(t, vibrantMetadata, settings) {
+  if (!vibrantMetadata || !settings || !settings.vibrantStops) return null;
+  
+  const stops = Object.keys(settings.vibrantStops).map(id => ({
+    id,
+    t: settings.vibrantStops[id].t
+  }));
+  
+  if (stops.length === 0) return null;
+
+  let closestStop = null;
+  let minDiff = Infinity;
+  for (const stop of stops) {
+    const diff = Math.abs(t - stop.t);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closestStop = stop;
     }
   }
+  
+  const spread = settings.vibrantSpread || 0.05;
+  if (minDiff <= spread) {
+    return vibrantMetadata.find(v => v.id === closestStop.id) || null;
+  }
+  
+  return null;
+}
+
+export function getTileAtGradient(t, line, metadata, vibrantMetadata, settings) {
+  // Check for vibrant stops first
+  const override = getVibrantOverride(t, vibrantMetadata, settings);
+  if (override) return override;
 
   // Fallback to standard gradient logic
   // t is between 0 and 1
@@ -202,6 +208,10 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
     // DIRECT COLOR MATCH (Shift brightness via Bezier first)
     const { x1: bx1, y1: by1, x2: bx2, y2: by2 } = settings.bezier || { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 };
     const shiftedBrightness = getBezier(Math.max(0, Math.min(1, brightness)), bx1, by1, bx2, by2);
+    
+    // Check for vibrant override based on the shifted brightness
+    const override = getVibrantOverride(shiftedBrightness, vibrantMetadata, settings);
+    if (override) return override;
     
     // Scale the raw RGB values by the new brightness factor
     if (brightness > 0.001) {
