@@ -33,7 +33,7 @@ export default function Workspace({ metadata, settings, selectedImage, onImageUp
             setLoadedImages({...images});
           }
         };
-        img.src = `/tiles/resized/${size}/${tile.filename}`; 
+        img.src = `${import.meta.env.BASE_URL}tiles/resized/${size}/${tile.filename}`; 
         images[size][tile.id] = img;
       });
     });

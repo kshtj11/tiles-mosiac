@@ -438,7 +438,7 @@ export default function Sidebar({ settings, onSettingsChange, metadata, onImageU
               <div 
                 key={tile.id} 
                 className="palette-tile"
-                style={{ backgroundImage: `url(/tiles/resized/64/${tile.filename})` }}
+                style={{ backgroundImage: `url(${import.meta.env.BASE_URL}tiles/resized/64/${tile.filename})` }}
                 title={`RGB: ${Math.round(tile.r)},${Math.round(tile.g)},${Math.round(tile.b)}`}
               />
             ))}

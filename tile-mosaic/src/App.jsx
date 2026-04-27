@@ -33,8 +33,8 @@ function App() {
   const [selectedImage, setSelectedImage] = useState(null);
 
   useEffect(() => {
-    // Load tile metadata
-    fetch('/tile_metadata.json')
+    // Load tile metadata using Vite's base URL
+    fetch(`${import.meta.env.BASE_URL}tile_metadata.json`)
       .then(res => res.json())
       .then(data => {
         // Sort by hue for better palette display
