@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { generateGridMosaic, generateQuadtreeMosaic, getBezier } from '../utils/mosaic';
 import './Workspace.css';
 
-export default function Workspace({ metadata, settings, selectedImage, onImageUpload }) {
+export default function Workspace({ metadata, vibrantMetadata, settings, selectedImage, onImageUpload }) {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const hiddenCanvasRef = useRef(null);
@@ -16,9 +16,9 @@ export default function Workspace({ metadata, settings, selectedImage, onImageUp
     const images = { 64: {}, 128: {}, 256: {}, 512: {} };
     const sizes = [64, 128, 256, 512];
     let loaded = 0;
-    const total = metadata.length * sizes.length;
+    const total = (metadata.length + (vibrantMetadata ? vibrantMetadata.length : 0)) * sizes.length;
     
-    metadata.forEach(tile => {
+    const loadTile = (tile, isVibrant) => {
       sizes.forEach(size => {
         const img = new Image();
         img.onload = () => {
@@ -33,12 +33,19 @@ export default function Workspace({ metadata, settings, selectedImage, onImageUp
             setLoadedImages({...images});
           }
         };
-        img.src = `${import.meta.env.BASE_URL}tiles/resized/${size}/${tile.filename}`; 
+        const folder = isVibrant ? 'tiles-vibrant' : 'tiles';
+        img.src = `${import.meta.env.BASE_URL}${folder}/resized/${size}/${tile.filename}`; 
         images[size][tile.id] = img;
       });
-    });
+    };
+
+    metadata.forEach(tile => loadTile(tile, false));
+    if (vibrantMetadata) {
+      vibrantMetadata.forEach(tile => loadTile(tile, true));
+    }
+    
     setLoadedImages(images);
-  }, [metadata]);
+  }, [metadata, vibrantMetadata]);
 
   useEffect(() => {
     if (!containerRef.current || !canvasRef.current || !hiddenCanvasRef.current) return;
@@ -187,10 +194,10 @@ export default function Workspace({ metadata, settings, selectedImage, onImageUp
 
       // Now generate mosaic
       let tiles = [];
-      if (settings.quadtreeMode) {
-        tiles = generateQuadtreeMosaic(hiddenCanvas, settings, metadata);
+      if (settings.renderMode === 'quadtree') {
+        tiles = generateQuadtreeMosaic(hiddenCanvas, settings, metadata, vibrantMetadata);
       } else {
-        tiles = generateGridMosaic(hiddenCanvas, settings, metadata);
+        tiles = generateGridMosaic(hiddenCanvas, settings, metadata, vibrantMetadata);
       }
 
       // Render to main canvas

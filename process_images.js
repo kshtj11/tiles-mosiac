@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
-const inputDir = path.join(__dirname, 'Export-crop-low');
-const outputBaseDir = path.join(inputDir, 'resized');
+const inputDir = path.join(__dirname, 'Export-crop-high');
+const outputBaseDir = path.join(__dirname, 'tile-mosaic', 'public', 'tiles-vibrant', 'resized');
 
 const sizes = [64, 128, 256, 512];
 

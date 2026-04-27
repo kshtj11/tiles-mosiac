@@ -27,27 +27,39 @@ function App() {
     textGradientType: 'radial', // 'radial' or 'directional'
     directionLine: { p1: { x: 0.5, y: 0.1 }, p2: { x: 0.5, y: 0.9 } },
     bezier: { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 },
-    whiteBgTile: false
+    whiteBgTile: false,
+    vibrantStops: {}, // { "id": { t: 0.5 } }
+    vibrantSpread: 0.05
   });
   
   const [selectedImage, setSelectedImage] = useState(null);
 
+  const [vibrantMetadata, setVibrantMetadata] = useState([]);
+
   useEffect(() => {
-    // Load tile metadata using Vite's base URL
+    // Load standard tile metadata
     fetch(`${import.meta.env.BASE_URL}tile_metadata.json`)
       .then(res => res.json())
       .then(data => {
-        // Sort by hue for better palette display
         const sorted = data.sort((a, b) => a.h - b.h);
         setMetadata(sorted);
       })
       .catch(err => console.error("Error loading tile metadata", err));
+      
+    // Load vibrant tile metadata
+    fetch(`${import.meta.env.BASE_URL}tile_metadata_vibrant.json`)
+      .then(res => res.json())
+      .then(data => {
+        setVibrantMetadata(data);
+      })
+      .catch(err => console.error("Error loading vibrant tile metadata", err));
   }, []);
 
   return (
     <div className="app-container">
       <Workspace 
         metadata={metadata} 
+        vibrantMetadata={vibrantMetadata}
         settings={settings} 
         selectedImage={selectedImage}
         onImageUpload={setSelectedImage}
@@ -56,6 +68,7 @@ function App() {
         settings={settings} 
         onSettingsChange={setSettings} 
         metadata={metadata}
+        vibrantMetadata={vibrantMetadata}
         onImageUpload={setSelectedImage}
       />
     </div>

@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 
-const tilesDir = path.join(__dirname, 'Export-crop-low', 'resized', '64');
-const outputFile = path.join(__dirname, 'tile-mosaic', 'public', 'tile_metadata.json');
+const tilesDir = path.join(__dirname, 'tile-mosaic', 'public', 'tiles-vibrant', 'resized', '64');
+const outputFile = path.join(__dirname, 'tile-mosaic', 'public', 'tile_metadata_vibrant.json');
 
 async function generateMetadata() {
   const files = fs.readdirSync(tilesDir).filter(f => f.toLowerCase().endsWith('.jpg') || f.toLowerCase().endsWith('.png'));

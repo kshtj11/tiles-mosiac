@@ -1,4 +1,31 @@
-export function getTileAtGradient(t, line, metadata) {
+export function getTileAtGradient(t, line, metadata, vibrantMetadata, settings) {
+  // Check for vibrant stops first
+  if (vibrantMetadata && settings && settings.vibrantStops) {
+    const stops = Object.keys(settings.vibrantStops).map(id => ({
+      id,
+      t: settings.vibrantStops[id].t
+    }));
+    
+    if (stops.length > 0) {
+      let closestStop = null;
+      let minDiff = Infinity;
+      for (const stop of stops) {
+        const diff = Math.abs(t - stop.t);
+        if (diff < minDiff) {
+          minDiff = diff;
+          closestStop = stop;
+        }
+      }
+      
+      const spread = settings.vibrantSpread || 0.05;
+      if (minDiff <= spread) {
+        const vibrantTile = vibrantMetadata.find(v => v.id === closestStop.id);
+        if (vibrantTile) return vibrantTile;
+      }
+    }
+  }
+
+  // Fallback to standard gradient logic
   // t is between 0 and 1
   const x = line.p1.x + t * (line.p2.x - line.p1.x);
   const y = line.p1.y + t * (line.p2.y - line.p1.y);
@@ -140,15 +167,17 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
 
     if (isBorder) {
       if (settings.useStrokePalette && settings.strokeLine) {
-        return getTileAtGradient(g / 255, settings.strokeLine, metadata);
+        return getTileAtGradient(g / 255, settings.strokeLine, metadata, vibrantMetadata, settings);
       }
       return borderCandidates[Math.floor(Math.random() * borderCandidates.length)];
     }
-
+    
+    // RED (Font Text Fill Core)
     if (isGradient) {
-      const t = Math.max(0, Math.min(1, r / 255));
       if (settings.useGradientPalette && settings.gradientLine) {
-        return getTileAtGradient(t, settings.gradientLine, metadata);
+        // Red maps to text fill, value indicates the calculated Bezier t mapping
+        const t = Math.max(0, Math.min(1, r / 255));
+        return getTileAtGradient(t, settings.gradientLine, metadata, vibrantMetadata, settings);
       }
       return fillCandidates[Math.floor(Math.random() * fillCandidates.length)];
     }
@@ -167,7 +196,7 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
       // GRADIENT LINE MAP (Luminosity -> Gradient Line via Bezier)
       const { x1: bx1, y1: by1, x2: bx2, y2: by2 } = settings.bezier || { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 };
       const t = getBezier(Math.max(0, Math.min(1, brightness)), bx1, by1, bx2, by2);
-      return getTileAtGradient(t, settings.gradientLine, metadata);
+      return getTileAtGradient(t, settings.gradientLine, metadata, vibrantMetadata, settings);
     } 
     
     // DIRECT COLOR MATCH (Shift brightness via Bezier first)
