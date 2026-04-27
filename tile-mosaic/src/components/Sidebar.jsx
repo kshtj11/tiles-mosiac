@@ -121,7 +121,7 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
             className={settings.mode === 'text' ? 'active' : ''} 
             onClick={() => updateSetting('mode', 'text')}
           >
-            <Type size={18} /> Font
+            <Type size={18} /> Text
           </button>
           <button 
             className={settings.mode === 'image' ? 'active' : ''} 
@@ -446,7 +446,7 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
               <div 
                 key={tile.id} 
                 className="palette-tile"
-                style={{ backgroundImage: `url(${import.meta.env.BASE_URL}tiles/resized/64/${tile.filename})` }}
+                style={{ backgroundImage: `url("${import.meta.env.BASE_URL}tiles/resized/64/${encodeURIComponent(tile.filename)}")` }}
                 title={`RGB: ${Math.round(tile.r)},${Math.round(tile.g)},${Math.round(tile.b)}`}
               />
             ))}
@@ -511,7 +511,7 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
                     top: '50%', 
                     transform: 'translate(-50%, -50%)',
                     width: '32px', height: '32px',
-                    backgroundImage: `url(${import.meta.env.BASE_URL}tiles-vibrant/resized/64/${tile.filename})`,
+                    backgroundImage: `url("${import.meta.env.BASE_URL}tiles-vibrant/resized/64/${encodeURIComponent(tile.filename)}")`,
                     backgroundSize: 'cover',
                     border: '2px solid var(--accent)',
                     borderRadius: '50%',
@@ -558,7 +558,7 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
                   title={`Toggle override for tile ${tile.id}`}
                   style={{
                     aspectRatio: '1',
-                    backgroundImage: `url(${import.meta.env.BASE_URL}tiles-vibrant/resized/64/${tile.filename})`,
+                    backgroundImage: `url("${import.meta.env.BASE_URL}tiles-vibrant/resized/64/${encodeURIComponent(tile.filename)}")`,
                     backgroundSize: 'cover',
                     border: isActive ? '2px solid var(--accent)' : '2px solid transparent',
                     opacity: isActive ? 1 : 0.4,

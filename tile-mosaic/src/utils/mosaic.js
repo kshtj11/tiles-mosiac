@@ -135,7 +135,7 @@ export function getRegionColor(imgData, x, y, regionWidth, regionHeight, canvasW
 
 let cachedWhiteTile = null;
 
-export function findClosestTile(r, g, b, a, x, y, width, height, settings, metadata) {
+export function findClosestTile(r, g, b, a, x, y, width, height, settings, metadata, vibrantMetadata) {
   const { bgCandidates, borderCandidates, fillCandidates } = getCandidates(metadata);
 
   if (settings.whiteBgTile && !cachedWhiteTile) {
@@ -235,7 +235,7 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
   }
 }
 
-export function generateGridMosaic(canvas, settings, metadata) {
+export function generateGridMosaic(canvas, settings, metadata, vibrantMetadata) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const width = canvas.width;
   const height = canvas.height;
@@ -255,7 +255,7 @@ export function generateGridMosaic(canvas, settings, metadata) {
       
       const { r, g, b, a } = getRegionColor(fullImgData, px, py, cellSizeX, cellSizeY, width, height);
       
-      const closest = findClosestTile(r, g, b, a, px, py, width, height, settings, metadata);
+      const closest = findClosestTile(r, g, b, a, px, py, width, height, settings, metadata, vibrantMetadata);
       
       if (closest) {
         tiles.push({
@@ -271,7 +271,7 @@ export function generateGridMosaic(canvas, settings, metadata) {
   return tiles;
 }
 
-export function generateQuadtreeMosaic(canvas, settings, metadata) {
+export function generateQuadtreeMosaic(canvas, settings, metadata, vibrantMetadata) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const width = canvas.width;
   const height = canvas.height;
@@ -322,7 +322,7 @@ export function generateQuadtreeMosaic(canvas, settings, metadata) {
       const checkW = Math.min(size, width - x);
       const checkH = Math.min(size, height - y);
       const { r, g, b, a } = getRegionColor(fullImgData, x, y, checkW, checkH, width, height);
-      const tile = findClosestTile(r, g, b, a, x, y, width, height, settings, metadata);
+      const tile = findClosestTile(r, g, b, a, x, y, width, height, settings, metadata, vibrantMetadata);
       if (tile) {
         tiles.push({ x, y, size, tileId: tile.id });
       }
@@ -342,7 +342,7 @@ export function generateQuadtreeMosaic(canvas, settings, metadata) {
       subdivide(gridX + halfCells, gridY + halfCells, halfCells);
     } else {
       // Uniform enough, add a big tile
-      const tile = findClosestTile(r, g, b, a, x, y, width, height, settings, metadata);
+      const tile = findClosestTile(r, g, b, a, x, y, width, height, settings, metadata, vibrantMetadata);
       if (tile) {
         tiles.push({ x, y, size, tileId: tile.id });
       }

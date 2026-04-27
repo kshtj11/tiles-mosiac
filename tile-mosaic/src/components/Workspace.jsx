@@ -34,7 +34,7 @@ export default function Workspace({ metadata, vibrantMetadata, settings, selecte
           }
         };
         const folder = isVibrant ? 'tiles-vibrant' : 'tiles';
-        img.src = `${import.meta.env.BASE_URL}${folder}/resized/${size}/${tile.filename}`; 
+        img.src = `${import.meta.env.BASE_URL}${folder}/resized/${size}/${encodeURIComponent(tile.filename)}`; 
         images[size][tile.id] = img;
       });
     };
@@ -194,7 +194,7 @@ export default function Workspace({ metadata, vibrantMetadata, settings, selecte
 
       // Now generate mosaic
       let tiles = [];
-      if (settings.renderMode === 'quadtree') {
+      if (settings.quadtreeMode) {
         tiles = generateQuadtreeMosaic(hiddenCanvas, settings, metadata, vibrantMetadata);
       } else {
         tiles = generateGridMosaic(hiddenCanvas, settings, metadata, vibrantMetadata);
