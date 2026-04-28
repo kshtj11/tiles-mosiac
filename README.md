@@ -6,8 +6,8 @@ Thank you Akash and Karthikay for the documentation.
 
 *The UX is very bad right now, I wanted to create a tool, which I iterated as I wanted more features, I'll fix the ux in a later version*
 
-# ai overview 
-## 🌟 Overview
+# *ai overview* 
+
 TTM is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. 
 
 ## ✨ Key Features
