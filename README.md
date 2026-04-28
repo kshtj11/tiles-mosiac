@@ -1,4 +1,4 @@
-# Tiles Tithe Mi
+# Tiles Tithe Mosiac / टाइल्स तिथे मोझियाक  
 
 Hello I'm Kshitij and I wanted to make a typeface out of these glazed tiles, we made in a course at IDC. Then decided why not make a whole tool to play with them instead.
 Thank you Akash and Karthikay for the documentation.
