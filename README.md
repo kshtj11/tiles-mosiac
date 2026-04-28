@@ -4,6 +4,10 @@ Hello I'm Kshitij and I wanted to make a typeface out of these glazed tiles, we 
 
 Thank you Akash and Karthikay for the documentation.
 
+```
+The UX is very bad right now, I wanted to create a tool, which I iterated as I wanted more features, I'll fix the ux in a later version
+```
+
 ## 🌟 Overview
 TTM is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. 
 
