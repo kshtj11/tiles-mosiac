@@ -12,6 +12,8 @@ function App() {
     fontSize: 200,
     textOffsetX: 0,
     textOffsetY: 0,
+    tracking: 0,
+    leading: 1.1,
     gridResolution: 32, // how many tiles across
     quadtreeMode: true,
     quadtreeDetail: 10, // threshold for splitting
@@ -21,6 +23,7 @@ function App() {
     gradientLine: { p1: { x: 0.1, y: 0.9 }, p2: { x: 0.9, y: 0.1 } },
     useStroke: true,
     strokeWidth: 8,
+    borderTileId: null,
     gradientWidth: 40,
     imageMappingType: 'direct', // 'direct' or 'gradient'
     quadtreeDirectional: false,

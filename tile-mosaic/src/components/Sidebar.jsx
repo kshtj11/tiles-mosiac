@@ -302,6 +302,24 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
             />
           </div>
           <div className="input-group">
+            <label>Tracking (Letter Spacing)</label>
+            <input 
+              type="range" 
+              min="-100" max="500" 
+              value={settings.tracking || 0} 
+              onChange={e => updateSetting('tracking', parseInt(e.target.value))} 
+            />
+          </div>
+          <div className="input-group">
+            <label>Leading (Line Height)</label>
+            <input 
+              type="range" 
+              min="0.5" max="3" step="0.1"
+              value={settings.leading || 1.1} 
+              onChange={e => updateSetting('leading', parseFloat(e.target.value))} 
+            />
+          </div>
+          <div className="input-group">
             <label>Offset X</label>
             <input 
               type="range" 
@@ -329,14 +347,63 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
             <label>Add Border/Stroke</label>
           </div>
           {settings.useStroke && (
-            <div className="input-group">
-              <label>Border Width</label>
-              <input 
-                type="range" 
-                min="2" max="60" 
-                value={settings.strokeWidth} 
-                onChange={e => updateSetting('strokeWidth', parseInt(e.target.value))} 
-              />
+            <div style={{ padding: '8px', background: 'var(--bg-darker)', borderRadius: '8px', marginTop: '8px' }}>
+              <div className="input-group" style={{ marginBottom: '12px' }}>
+                <label>Border Width</label>
+                <input 
+                  type="range" 
+                  min="2" max="60" 
+                  value={settings.strokeWidth} 
+                  onChange={e => updateSetting('strokeWidth', parseInt(e.target.value))} 
+                />
+              </div>
+              <div className="input-group" style={{ marginBottom: '0' }}>
+                <label style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span>Border Tile Override</span>
+                  {settings.borderTileId && (
+                    <span 
+                      style={{ cursor: 'pointer', color: 'var(--accent)', fontSize: '10px' }}
+                      onClick={() => updateSetting('borderTileId', null)}
+                    >
+                      Use Random
+                    </span>
+                  )}
+                </label>
+                <div className="custom-scrollbar" style={{ display: 'flex', gap: '4px', overflowX: 'auto', paddingBottom: '8px' }}>
+                  <div 
+                    onClick={() => updateSetting('borderTileId', null)}
+                    style={{
+                      flexShrink: 0,
+                      width: '32px', height: '32px',
+                      border: !settings.borderTileId ? '2px solid var(--accent)' : '1px solid var(--border)',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '10px', color: 'var(--text-muted)',
+                      background: 'var(--bg-dark)'
+                    }}
+                  >
+                    RND
+                  </div>
+                  {allTiles.map(tile => (
+                    <div 
+                      key={tile.id}
+                      onClick={() => updateSetting('borderTileId', tile.id)}
+                      title={tile.filename}
+                      style={{
+                        flexShrink: 0,
+                        width: '32px', height: '32px',
+                        backgroundImage: `url("${import.meta.env.BASE_URL}${tile.isVibrant ? 'tiles-vibrant' : 'tiles'}/resized/64/${encodeURIComponent(tile.filename)}")`,
+                        backgroundSize: 'cover',
+                        border: settings.borderTileId === tile.id ? '2px solid var(--accent)' : '1px solid transparent',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        opacity: (!settings.borderTileId || settings.borderTileId === tile.id) ? 1 : 0.4
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           )}
           <div className="input-group">

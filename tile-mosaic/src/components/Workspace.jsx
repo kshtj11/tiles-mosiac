@@ -66,9 +66,10 @@ const Workspace = React.forwardRef(({ metadata, vibrantMetadata, settings, selec
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.font = `800 ${frameSettings.fontSize}px "${frameSettings.fontFamily}", sans-serif`;
+      ctx.letterSpacing = `${frameSettings.tracking || 0}px`;
       
       const lines = frameSettings.text.split('\n');
-      const lineHeight = frameSettings.fontSize * 1.1;
+      const lineHeight = frameSettings.fontSize * (frameSettings.leading || 1.1);
       const totalHeight = lineHeight * lines.length;
       
       let textWidth = 0;
@@ -108,6 +109,7 @@ const Workspace = React.forwardRef(({ metadata, vibrantMetadata, settings, selec
       tCtx.textAlign = 'center';
       tCtx.textBaseline = 'middle';
       tCtx.font = `800 ${frameSettings.fontSize}px "${frameSettings.fontFamily}", sans-serif`;
+      tCtx.letterSpacing = `${frameSettings.tracking || 0}px`;
       
       lines.forEach((line, i) => {
         const y = startY + i * lineHeight + (frameSettings.textOffsetY || 0);
@@ -140,6 +142,7 @@ const Workspace = React.forwardRef(({ metadata, vibrantMetadata, settings, selec
       mCtx.textAlign = 'center';
       mCtx.textBaseline = 'middle';
       mCtx.font = tCtx.font;
+      mCtx.letterSpacing = `${frameSettings.tracking || 0}px`;
       mCtx.fillStyle = 'white';
       
       lines.forEach((line, i) => {

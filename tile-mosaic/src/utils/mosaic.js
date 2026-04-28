@@ -172,6 +172,10 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
     }
 
     if (isBorder) {
+      if (settings.borderTileId) {
+        const borderTile = metadata.find(t => t.id === settings.borderTileId) || (vibrantMetadata && vibrantMetadata.find(t => t.id === settings.borderTileId));
+        if (borderTile) return borderTile;
+      }
       if (settings.useStrokePalette && settings.strokeLine) {
         return getTileAtGradient(g / 255, settings.strokeLine, metadata, vibrantMetadata, settings);
       }
