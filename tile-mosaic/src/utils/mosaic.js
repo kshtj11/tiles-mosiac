@@ -191,9 +191,29 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
     return bgCandidates[Math.floor(Math.random() * bgCandidates.length)];
   } else {
     // IMAGE MODE LOGIC
-    let targetR = r;
-    let targetG = g;
-    let targetB = b;
+    
+    // Check Explicit Palette Mappings First
+    if (settings.paletteMappings && Object.keys(settings.paletteMappings).length > 0) {
+      let minPaletteDist = Infinity;
+      let matchedColorKey = null;
+      for (const [key, tileId] of Object.entries(settings.paletteMappings)) {
+        if (!tileId) continue;
+        const [pr, pg, pb] = key.split(',').map(Number);
+        const dist = (r - pr)**2 + (g - pg)**2 + (b - pb)**2;
+        if (dist < minPaletteDist) {
+          minPaletteDist = dist;
+          matchedColorKey = key;
+        }
+      }
+      
+      // If we are within a reasonable tolerance of the extracted palette color
+      // Max distance for 32 bin quantization is around 3 * 32^2 = 3072. We'll use 4000.
+      if (minPaletteDist < 4000) {
+        const tileId = settings.paletteMappings[matchedColorKey];
+        const mappedTile = metadata.find(t => t.id === tileId) || (vibrantMetadata && vibrantMetadata.find(t => t.id === tileId));
+        if (mappedTile) return mappedTile;
+      }
+    }
     
     // Calculate raw mathematical brightness of the source region
     const brightness = (r * 0.299 + g * 0.587 + b * 0.114) / 255;
@@ -201,18 +221,27 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
     if (settings.imageMappingType === 'gradient' || (settings.useGradientPalette && !settings.imageMappingType)) {
       // GRADIENT LINE MAP (Luminosity -> Gradient Line via Bezier)
       const { x1: bx1, y1: by1, x2: bx2, y2: by2 } = settings.bezier || { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 };
-      const t = getBezier(Math.max(0, Math.min(1, brightness)), bx1, by1, bx2, by2);
-      return getTileAtGradient(t, settings.gradientLine, metadata, vibrantMetadata, settings);
+      const rawT = Math.max(0, Math.min(1, brightness));
+      const adjustedT = getBezier(rawT, bx1, by1, bx2, by2);
+      const mod = (n, m) => ((n % m) + m) % m;
+      const loopedT = mod(adjustedT + (settings.phaseOffset || 0), 1.0);
+      return getTileAtGradient(loopedT, settings.gradientLine, metadata, vibrantMetadata, settings);
     } 
     
     // DIRECT COLOR MATCH (Shift brightness via Bezier first)
     const { x1: bx1, y1: by1, x2: bx2, y2: by2 } = settings.bezier || { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 };
-    const shiftedBrightness = getBezier(Math.max(0, Math.min(1, brightness)), bx1, by1, bx2, by2);
+    const rawT = Math.max(0, Math.min(1, brightness));
+    const rawShifted = getBezier(rawT, bx1, by1, bx2, by2);
+    const mod = (n, m) => ((n % m) + m) % m;
+    const shiftedBrightness = mod(rawShifted + (settings.phaseOffset || 0), 1.0);
     
     // Check for vibrant override based on the shifted brightness
     const override = getVibrantOverride(shiftedBrightness, vibrantMetadata, settings);
     if (override) return override;
     
+    let targetR;
+    let targetG;
+    let targetB;
     // Scale the raw RGB values by the new brightness factor
     if (brightness > 0.001) {
       const scale = shiftedBrightness / brightness;

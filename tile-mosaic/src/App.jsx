@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './App.css';
 import Workspace from './components/Workspace';
 import Sidebar from './components/Sidebar';
@@ -29,12 +29,15 @@ function App() {
     bezier: { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 },
     whiteBgTile: false,
     vibrantStops: {}, // { "id": { t: 0.5 } }
-    vibrantSpread: 0.05
+    vibrantSpread: 0.05,
+    paletteMappings: {},
+    imagePalette: []
   });
   
   const [selectedImage, setSelectedImage] = useState(null);
 
   const [vibrantMetadata, setVibrantMetadata] = useState([]);
+  const workspaceRef = useRef(null);
 
   useEffect(() => {
     // Load standard tile metadata
@@ -55,9 +58,50 @@ function App() {
       .catch(err => console.error("Error loading vibrant tile metadata", err));
   }, []);
 
+  useEffect(() => {
+    if (selectedImage) {
+      const img = new Image();
+      img.src = selectedImage;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 100;
+        canvas.height = Math.max(1, 100 * (img.height / img.width));
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        
+        const colorCounts = {};
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i+3] < 128) continue;
+          const r = Math.round(data[i] / 32) * 32;
+          const g = Math.round(data[i+1] / 32) * 32;
+          const b = Math.round(data[i+2] / 32) * 32;
+          // Ignore completely black if bgIsBlack/textOnlyBg, but since it's image mode let's keep it.
+          const key = `${r},${g},${b}`;
+          colorCounts[key] = (colorCounts[key] || 0) + 1;
+        }
+        
+        const sortedColors = Object.entries(colorCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8) // Top 8 dominant colors
+          .map(entry => {
+            const [r, g, b] = entry[0].split(',').map(Number);
+            return { r, g, b };
+          });
+          
+        setSettings(prev => ({ 
+          ...prev, 
+          imagePalette: sortedColors, 
+          paletteMappings: {} // Reset mappings on new image
+        }));
+      };
+    }
+  }, [selectedImage]);
+
   return (
     <div className="app-container">
       <Workspace 
+        ref={workspaceRef}
         metadata={metadata} 
         vibrantMetadata={vibrantMetadata}
         settings={settings} 
@@ -65,11 +109,13 @@ function App() {
         onImageUpload={setSelectedImage}
       />
       <Sidebar 
+        workspaceRef={workspaceRef}
         settings={settings} 
         onSettingsChange={setSettings} 
         metadata={metadata}
         vibrantMetadata={vibrantMetadata}
         onImageUpload={setSelectedImage}
+        selectedImage={selectedImage}
       />
     </div>
   );

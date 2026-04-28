@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Image as ImageIcon, Type, LayoutGrid, Layers, Upload, Download } from 'lucide-react';
 import './Sidebar.css';
 
-export default function Sidebar({ settings, onSettingsChange, metadata, vibrantMetadata, onImageUpload }) {
+export default function Sidebar({ settings, onSettingsChange, metadata, vibrantMetadata, onImageUpload, selectedImage, workspaceRef }) {
   const fileInputRef = useRef(null);
   const fontInputRef = useRef(null);
   const paletteRef = useRef(null);
@@ -10,6 +10,20 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
   const bezierRef = useRef(null);
   const vibrantMapRef = useRef(null);
   const [dragging, setDragging] = useState(null); // 'p1', 'p2', 'vibrant_id'
+  const [selectingForColor, setSelectingForColor] = useState(null);
+  const projectInputRef = useRef(null);
+  const [keyframeA, setKeyframeA] = useState(null);
+  const [keyframeB, setKeyframeB] = useState(null);
+  const [gifFrames, setGifFrames] = useState(30);
+  const [resKeyframeA, setResKeyframeA] = useState(null);
+  const [resKeyframeB, setResKeyframeB] = useState(null);
+  const [resGifFrames, setResGifFrames] = useState(30);
+  const [exportProgress, setExportProgress] = useState(null);
+
+  const allTiles = [
+    ...metadata.map(t => ({...t, type: t.type || 'normal', isVibrant: false})),
+    ...(vibrantMetadata || []).map(t => ({...t, type: t.type || 'vibrant', isVibrant: true}))
+  ];
 
   const updateSetting = (key, value) => {
     onSettingsChange(prev => ({ ...prev, [key]: value }));
@@ -24,6 +38,97 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
         updateSetting('mode', 'image');
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProject = () => {
+    const projectData = {
+      settings,
+      selectedImage,
+      version: 1
+    };
+    const blob = new Blob([JSON.stringify(projectData)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `glaze-project-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleLoadProject = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const data = JSON.parse(event.target.result);
+          if (data.settings) {
+            onSettingsChange(data.settings);
+          }
+          if (data.selectedImage !== undefined) {
+            onImageUpload(data.selectedImage);
+          }
+        } catch (err) {
+          alert("Failed to load project file.");
+        }
+      };
+      reader.readAsText(file);
+    }
+    // reset input
+    if (projectInputRef.current) {
+      projectInputRef.current.value = '';
+    }
+  };
+
+  const handleExportGif = async () => {
+    if (!keyframeA || !keyframeB || !workspaceRef.current) return;
+    try {
+      setExportProgress('Starting export...');
+      await workspaceRef.current.exportGif(keyframeA, keyframeB, gifFrames, 50, (status) => {
+        setExportProgress(status);
+        if (status === 'Finished') {
+          setTimeout(() => setExportProgress(null), 2000);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      setExportProgress('Error exporting GIF');
+      setTimeout(() => setExportProgress(null), 3000);
+    }
+  };
+
+  const handleExportGifLoop = async () => {
+    if (!workspaceRef.current) return;
+    try {
+      setExportProgress('Starting loop export...');
+      await workspaceRef.current.exportGifLoop(gifFrames, 50, (status) => {
+        setExportProgress(status);
+        if (status === 'Finished') {
+          setTimeout(() => setExportProgress(null), 2000);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      setExportProgress('Error exporting GIF');
+      setTimeout(() => setExportProgress(null), 3000);
+    }
+  };
+
+  const handleExportResGif = async () => {
+    if (!resKeyframeA || !resKeyframeB || !workspaceRef.current) return;
+    try {
+      setExportProgress('Starting res export...');
+      await workspaceRef.current.exportResGif(resKeyframeA, resKeyframeB, resGifFrames, 50, (status) => {
+        setExportProgress(status);
+        if (status === 'Finished') {
+          setTimeout(() => setExportProgress(null), 2000);
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      setExportProgress('Error exporting GIF');
+      setTimeout(() => setExportProgress(null), 3000);
     }
   };
 
@@ -112,6 +217,22 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
       <div className="sidebar-header">
         <h2>Glaze Mosaic</h2>
         <p>Visual mapping to tile art.</p>
+        
+        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+          <button className="upload-btn" onClick={handleSaveProject} style={{ flex: 1, padding: '6px', fontSize: '11px', background: 'var(--bg-dark)', border: '1px solid var(--border)' }}>
+            <Download size={14} /> Save Project
+          </button>
+          <button className="upload-btn" onClick={() => projectInputRef.current?.click()} style={{ flex: 1, padding: '6px', fontSize: '11px', background: 'var(--bg-dark)', border: '1px solid var(--border)' }}>
+            <Upload size={14} /> Load Project
+          </button>
+          <input 
+            type="file" 
+            ref={projectInputRef} 
+            style={{ display: 'none' }} 
+            accept=".json" 
+            onChange={handleLoadProject} 
+          />
+        </div>
       </div>
 
       <div className="sidebar-section">
@@ -277,6 +398,57 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
           </div>
         </div>
 
+      <div className="sidebar-section" style={{ marginTop: '16px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>GIF Export (Wave Effect)</label>
+        <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+          Animate the Bezier curve between two keyframes and export as a GIF.
+        </p>
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+          <button 
+            className="upload-btn" 
+            onClick={() => setKeyframeA(settings.bezier)} 
+            style={{ flex: 1, padding: '6px', fontSize: '11px', background: keyframeA ? 'var(--accent)' : 'var(--bg-dark)', border: '1px solid var(--border)' }}
+          >
+            {keyframeA ? 'Keyframe A Set' : 'Set Keyframe A'}
+          </button>
+          <button 
+            className="upload-btn" 
+            onClick={() => setKeyframeB(settings.bezier)} 
+            style={{ flex: 1, padding: '6px', fontSize: '11px', background: keyframeB ? 'var(--accent)' : 'var(--bg-dark)', border: '1px solid var(--border)' }}
+          >
+            {keyframeB ? 'Keyframe B Set' : 'Set Keyframe B'}
+          </button>
+        </div>
+        <div className="input-group" style={{ marginBottom: '8px' }}>
+          <label>Frames (Duration)</label>
+          <input 
+            type="range" 
+            min="10" max="100" 
+            value={gifFrames} 
+            onChange={e => setGifFrames(parseInt(e.target.value))} 
+          />
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{gifFrames} frames</span>
+        </div>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button 
+            className="upload-btn" 
+            onClick={handleExportGif} 
+            disabled={!keyframeA || !keyframeB || exportProgress}
+            style={{ flex: 1, padding: '8px', fontSize: '12px', background: (!keyframeA || !keyframeB || exportProgress) ? 'var(--bg-dark)' : 'var(--accent)', border: '1px solid var(--border)', opacity: (!keyframeA || !keyframeB || exportProgress) ? 0.5 : 1 }}
+          >
+            {exportProgress ? exportProgress : 'Export Wave GIF'}
+          </button>
+          <button 
+            className="upload-btn" 
+            onClick={handleExportGifLoop} 
+            disabled={exportProgress}
+            style={{ flex: 1, padding: '8px', fontSize: '12px', background: exportProgress ? 'var(--bg-dark)' : 'var(--accent)', border: '1px solid var(--border)', opacity: exportProgress ? 0.5 : 1 }}
+          >
+            {exportProgress ? exportProgress : 'Export Loop GIF'}
+          </button>
+        </div>
+      </div>
+
       { ((settings.mode === 'text' && settings.textGradientType === 'directional') || settings.quadtreeDirectional) && (
         <div className="sidebar-section" style={{ marginTop: '16px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Spatial Direction Vector</label>
@@ -392,6 +564,48 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
             </label>
           </>
         )}
+
+        <div className="sidebar-section" style={{ marginTop: '16px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>GIF Export (Resolution/Zoom)</label>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Animate the resolution (Grid/Quadtree scale) between two keyframes.
+          </p>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <button 
+              className="upload-btn" 
+              onClick={() => setResKeyframeA({ gridResolution: settings.gridResolution, quadtreeDetail: settings.quadtreeDetail })} 
+              style={{ flex: 1, padding: '6px', fontSize: '11px', background: resKeyframeA ? 'var(--accent)' : 'var(--bg-dark)', border: '1px solid var(--border)' }}
+            >
+              {resKeyframeA ? 'Res A Set' : 'Set Res A'}
+            </button>
+            <button 
+              className="upload-btn" 
+              onClick={() => setResKeyframeB({ gridResolution: settings.gridResolution, quadtreeDetail: settings.quadtreeDetail })} 
+              style={{ flex: 1, padding: '6px', fontSize: '11px', background: resKeyframeB ? 'var(--accent)' : 'var(--bg-dark)', border: '1px solid var(--border)' }}
+            >
+              {resKeyframeB ? 'Res B Set' : 'Set Res B'}
+            </button>
+          </div>
+          <div className="input-group" style={{ marginBottom: '8px' }}>
+            <label>Frames (Duration)</label>
+            <input 
+              type="range" 
+              min="10" max="100" 
+              value={resGifFrames} 
+              onChange={e => setResGifFrames(parseInt(e.target.value))} 
+            />
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{resGifFrames} frames</span>
+          </div>
+          <button 
+            className="upload-btn" 
+            onClick={handleExportResGif} 
+            disabled={!resKeyframeA || !resKeyframeB || exportProgress}
+            style={{ width: '100%', padding: '8px', fontSize: '12px', background: (!resKeyframeA || !resKeyframeB || exportProgress) ? 'var(--bg-dark)' : 'var(--accent)', border: '1px solid var(--border)', opacity: (!resKeyframeA || !resKeyframeB || exportProgress) ? 0.5 : 1 }}
+          >
+            {exportProgress ? exportProgress : 'Export Resolution GIF'}
+          </button>
+        </div>
+
       </div>
 
       <div className="sidebar-section">
@@ -570,6 +784,83 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
               )
             })}
           </div>
+        </div>
+      )}
+
+      {settings.mode === 'image' && settings.imagePalette && settings.imagePalette.length > 0 && (
+        <div className="sidebar-section">
+          <h3>Image Palette Overrides</h3>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+            Map dominant colors from the image to specific tiles.
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {settings.imagePalette.map((color, i) => {
+              const key = `${color.r},${color.g},${color.b}`;
+              const mappedTileId = settings.paletteMappings?.[key];
+              const mappedTile = mappedTileId ? allTiles.find(t => t.id === mappedTileId) : null;
+              
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '32px', height: '32px', backgroundColor: `rgb(${color.r},${color.g},${color.b})`, border: '1px solid var(--border)', borderRadius: '4px' }} />
+                  <span style={{ color: 'var(--text-muted)' }}>&rarr;</span>
+                  <div 
+                     style={{ 
+                       width: '32px', height: '32px', 
+                       border: '1px solid var(--border)', 
+                       borderRadius: '4px',
+                       backgroundImage: mappedTile ? `url("${import.meta.env.BASE_URL}${mappedTile.isVibrant ? 'tiles-vibrant' : 'tiles'}/resized/64/${encodeURIComponent(mappedTile.filename)}")` : 'none',
+                       backgroundSize: 'cover',
+                       cursor: 'pointer',
+                       display: 'flex', alignItems: 'center', justifyContent: 'center',
+                       fontSize: '10px',
+                       color: 'var(--text-muted)',
+                       backgroundColor: mappedTile ? 'transparent' : 'var(--bg-dark)'
+                     }}
+                     onClick={() => setSelectingForColor(selectingForColor === key ? null : key)}
+                  >
+                    {!mappedTile && "None"}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {selectingForColor && (
+            <div style={{ marginTop: '12px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Tile</span>
+                <button 
+                  onClick={() => updateSetting('paletteMappings', { ...settings.paletteMappings, [selectingForColor]: null })}
+                  style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }}
+                >
+                  Clear Mapping
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))', gap: '4px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
+                {allTiles.map(tile => {
+                  const isSelected = settings.paletteMappings?.[selectingForColor] === tile.id;
+                  return (
+                    <div 
+                      key={tile.id}
+                      onClick={() => {
+                        updateSetting('paletteMappings', { ...settings.paletteMappings, [selectingForColor]: tile.id });
+                        setSelectingForColor(null);
+                      }}
+                      title={`Select tile ${tile.id}`}
+                      style={{
+                        aspectRatio: '1',
+                        backgroundImage: `url("${import.meta.env.BASE_URL}${tile.isVibrant ? 'tiles-vibrant' : 'tiles'}/resized/64/${encodeURIComponent(tile.filename)}")`,
+                        backgroundSize: 'cover',
+                        cursor: 'pointer',
+                        borderRadius: '2px',
+                        border: isSelected ? '2px solid var(--accent)' : '2px solid transparent'
+                      }}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
