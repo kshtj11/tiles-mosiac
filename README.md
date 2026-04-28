@@ -5,7 +5,7 @@ Hello I'm Kshitij and I wanted to make a typeface out of these glazed tiles, we 
 Thank you Akash and Karthikay for the documentation.
 
 ## 🌟 Overview
-Glaze Mosaic is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. 
+TTM is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. 
 
 ## ✨ Key Features
 
