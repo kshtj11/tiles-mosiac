@@ -7,9 +7,9 @@ function App() {
   const [metadata, setMetadata] = useState([]);
   const [settings, setSettings] = useState({
     mode: 'text', // 'text' or 'image'
-    text: 'GLAZE',
+    text: 'Love\nGlazing',
     fontFamily: 'Outfit',
-    fontSize: 200,
+    fontSize: 150,
     textOffsetX: 0,
     textOffsetY: 0,
     tracking: 0,
@@ -20,16 +20,16 @@ function App() {
     textOnlyBg: true,
     bgIsBlack: false,
     useGradientPalette: true,
-    gradientLine: { p1: { x: 0.1, y: 0.9 }, p2: { x: 0.9, y: 0.1 } },
-    useStroke: true,
+    gradientLine: { p1: { x: 0.2, y: 0.4 }, p2: { x: 0.8, y: 0.6 } },
+    useStroke: false,
     strokeWidth: 8,
     borderTileId: null,
-    gradientWidth: 40,
+    gradientWidth: 65,
     imageMappingType: 'direct', // 'direct' or 'gradient'
     quadtreeDirectional: false,
-    textGradientType: 'radial', // 'radial' or 'directional'
+    textGradientType: 'directional', // 'radial' or 'directional'
     directionLine: { p1: { x: 0.5, y: 0.1 }, p2: { x: 0.5, y: 0.9 } },
-    bezier: { x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75 },
+    bezier: { x0: 0, y0: 0, x1: 0.25, y1: 0.25, x2: 0.75, y2: 0.75, x3: 1, y3: 1 },
     whiteBgTile: false,
     vibrantStops: {}, // { "id": { t: 0.5 } }
     vibrantSpread: 0.05,
