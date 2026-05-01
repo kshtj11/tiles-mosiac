@@ -167,17 +167,37 @@ const Workspace = React.forwardRef(({ metadata, vibrantMetadata, settings, selec
       ctx.drawImage(textCanvas, 0, 0);
       
     } else if (frameSettings.mode === 'image' && selectedImage) {
-      const img = new Image();
-      img.src = selectedImage;
-      await new Promise(r => { img.onload = r; });
-      
-      const scale = Math.min(width / img.width, height / img.height);
-      const w = img.width * scale;
-      const h = img.height * scale;
-      const x = (width - w) / 2;
-      const y = (height - h) / 2;
-      
-      ctx.drawImage(img, x, y, w, h);
+      if (selectedImage.type === 'gif') {
+        const frameIndex = frameSettings.gifFrameIndex || 0;
+        const currentFrame = selectedImage.frames[frameIndex] || selectedImage.frames[0];
+        if (currentFrame && currentFrame.canvas) {
+          const img = currentFrame.canvas;
+          const scale = Math.min(width / img.width, height / img.height);
+          const w = img.width * scale;
+          const h = img.height * scale;
+          const x = (width - w) / 2;
+          const y = (height - h) / 2;
+          ctx.drawImage(img, x, y, w, h);
+        }
+      } else {
+        const img = new Image();
+        img.src = typeof selectedImage === 'string' ? selectedImage : (selectedImage.url || '');
+        if (img.src) {
+          await new Promise((resolve, reject) => { 
+            img.onload = resolve; 
+            img.onerror = resolve; // Resolve anyway to avoid infinite hang
+          });
+          
+          if (img.width && img.height) {
+            const scale = Math.min(width / img.width, height / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (width - w) / 2;
+            const y = (height - h) / 2;
+            ctx.drawImage(img, x, y, w, h);
+          }
+        }
+      }
     }
 
     let tiles = [];
@@ -432,6 +452,74 @@ const Workspace = React.forwardRef(({ metadata, vibrantMetadata, settings, selec
         const a = document.createElement('a');
         a.href = url;
         a.download = `glaze-mosaic-res.gif`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      gif.render();
+    },
+    exportGifInput: async (fps, onProgress) => {
+      if (!selectedImage || selectedImage.type !== 'gif') {
+         throw new Error("No GIF input loaded");
+      }
+      
+      const container = containerRef.current;
+      const width = container.clientWidth - 40;
+      const height = container.clientHeight - 40;
+      
+      const delay = Math.round(1000 / fps);
+      const frames = selectedImage.frames.length;
+      
+      const gif = new GIF({
+        workers: 2,
+        quality: 10,
+        workerScript: `${import.meta.env.BASE_URL}gif.worker.js`,
+        width,
+        height
+      });
+      
+      const tmpCanvas = document.createElement('canvas');
+      tmpCanvas.width = width;
+      tmpCanvas.height = height;
+      const tmpHidden = document.createElement('canvas');
+      tmpHidden.width = width;
+      tmpHidden.height = height;
+
+      for (let i = 0; i < frames; i++) {
+        onProgress(`Rendering frame ${i+1}/${frames}...`);
+        
+        const frameSettings = {
+          ...settings,
+          gifFrameIndex: i
+        };
+
+        await renderFrame(frameSettings, tmpCanvas, tmpHidden, width, height);
+        
+        const frameCopy = document.createElement('canvas');
+        frameCopy.width = width;
+        frameCopy.height = height;
+        const ctx = frameCopy.getContext('2d');
+        if (frameSettings.textOnlyBg) {
+          ctx.fillStyle = frameSettings.bgIsBlack ? '#000000' : '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+        }
+        ctx.drawImage(tmpCanvas, 0, 0);
+        
+        gif.addFrame(frameCopy, { delay });
+      }
+
+      onProgress('Encoding GIF (this may take a while)...');
+      
+      gif.on('progress', p => {
+        onProgress(`Encoding GIF: ${Math.round(p * 100)}%`);
+      });
+
+      gif.on('finished', function(blob) {
+        onProgress('Finished');
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `glaze-mosaic-input.gif`;
         a.click();
         URL.revokeObjectURL(url);
       });

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "gif.js": "^0.2.0",
+    "gifuct-js": "^2.1.2",
     "lucide-react": "^1.11.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5"

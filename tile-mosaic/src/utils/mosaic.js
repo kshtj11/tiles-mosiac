@@ -278,6 +278,26 @@ export function findClosestTile(r, g, b, a, x, y, width, height, settings, metad
   }
 }
 
+
+const bayerMatrix = [
+  [ 0,  8,  2, 10],
+  [12,  4, 14,  6],
+  [ 3, 11,  1,  9],
+  [15,  7, 13,  5]
+];
+
+function applyBayer(r, g, b, x, y, size) {
+  const col = Math.floor(x / size) % 4;
+  const row = Math.floor(y / size) % 4;
+  const factor = (bayerMatrix[row][col] / 16.0) - 0.5;
+  const spread = 32; // color spread
+  return {
+    r: Math.max(0, Math.min(255, r + factor * spread)),
+    g: Math.max(0, Math.min(255, g + factor * spread)),
+    b: Math.max(0, Math.min(255, b + factor * spread))
+  };
+}
+
 export function generateGridMosaic(canvas, settings, metadata, vibrantMetadata) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const width = canvas.width;

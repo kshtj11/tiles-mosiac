@@ -34,7 +34,10 @@ function App() {
     vibrantStops: {}, // { "id": { t: 0.5 } }
     vibrantSpread: 0.05,
     paletteMappings: {},
-    imagePalette: []
+    imagePalette: [],
+    dithering: 'none', // 'none', 'floyd', 'atkinson', 'ordered'
+    colorLock: false,
+    gifFrameIndex: 0
   });
   
   const [selectedImage, setSelectedImage] = useState(null);
@@ -63,8 +66,11 @@ function App() {
 
   useEffect(() => {
     if (selectedImage) {
+      const isGif = selectedImage.type === 'gif';
+      const imgSrc = isGif ? selectedImage.url : selectedImage; // Fallback for old strings
+
       const img = new Image();
-      img.src = selectedImage;
+      img.src = imgSrc;
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 100;
@@ -79,10 +85,12 @@ function App() {
           const r = Math.round(data[i] / 32) * 32;
           const g = Math.round(data[i+1] / 32) * 32;
           const b = Math.round(data[i+2] / 32) * 32;
-          // Ignore completely black if bgIsBlack/textOnlyBg, but since it's image mode let's keep it.
           const key = `${r},${g},${b}`;
           colorCounts[key] = (colorCounts[key] || 0) + 1;
         }
+
+        // If it's a GIF, maybe add colors from other frames? 
+        // For now, first frame is enough for palette extraction to keep it fast.
         
         const sortedColors = Object.entries(colorCounts)
           .sort((a, b) => b[1] - a[1])
@@ -95,7 +103,8 @@ function App() {
         setSettings(prev => ({ 
           ...prev, 
           imagePalette: sortedColors, 
-          paletteMappings: {} // Reset mappings on new image
+          paletteMappings: {}, // Reset mappings on new image
+          gifFrameIndex: 0 // Reset frame
         }));
       };
     }
