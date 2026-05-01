@@ -10,24 +10,36 @@ Thank you Akash and Karthikay for the documentation.
 
 TTM is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. 
 
-## ✨ Key Features
 
-### 🎨 Intelligent Color Mapping
-* **Direct Match & Gradient Palette:** Upload an image and let the tool automatically map its brightness and color to specific tiles, or strictly enforce an 8x8 gradient line palette.
-* **Vibrant Overrides:** Define specific points along the brightness curve to snap to high-saturation vibrant tiles for that extra pop.
-* **Palette Extraction:** The app automatically analyzes your uploaded images and extracts the dominant colors, allowing you to manually map specific tiles to those colors.
+## Key Features
 
-### 🧩 Dynamic Grid & QuadTree Rendering
-* **Grid Mode:** A classic, uniform layout that resembles a standard mosaic.
-* **QuadTree Mode:** An adaptive mapping mode that recursively subdivides the canvas, rendering small tiles for high-detail areas (edges, text) and large tiles for flat backgrounds.
+### Color Mapping
+- **Direct Color Match**: Maps each tile region to the closest tile by Euclidean RGB distance. A Bezier curve editor lets you non-linearly shift brightness before matching.
+- **Gradient Palette Map**: Converts image regions to luminosity and maps them along a user-defined line across the 8×8 tile palette grid.
+- **Vibrant Overrides**: Pin specific high-saturation tiles to exact positions along the gradient — useful for forcing accent colours at particular brightness thresholds.
+- **Image Palette Extraction**: Extracts the eight dominant colours from an uploaded image and lets you manually assign any tile to any extracted colour.
 
-### 🎥 Animation & GIF Export
-* **Wave Gradient Export:** Keyframe two different Bezier curves and export an animation of the colors smoothly propagating through your text or image in a wave-like manner.
-* **Looping Gradients:** Export a seamless, looping GIF where the gradient colors cyclically wash over the text.
-* **Resolution & Zoom Export:** Interpolate the resolution of the grid or quadtree detail between two keyframes to create striking "zooming" or "enhancing" animations.
+### Rendering Modes
+- **Grid Mode**: Divides the canvas into a uniform square grid. Resolution is controlled by the number of tile columns.
+- **QuadTree Mode**: Recursively subdivides regions based on colour variance, placing small tiles in high-detail areas and large tiles in flat ones.
+- **Directional QuadTree Scaling**: Forces tile sizes to decrease progressively along a user-defined direction vector.
 
-### 💾 Project Save & Load
-* Download your exact state, including your custom tile mapping, font settings, and image data into a lightweight `.json` file to pick up exactly where you left off.
+### Input Modes
+- **Text**: Renders arbitrary multi-line text using any system font or a custom-uploaded `.ttf`/`.otf` file. Controls include font size, tracking, leading, X/Y offset, fill gradient style (radial or directional), and optional stroke with a per-tile border override.
+- **Image**: Upload a static image. The tool scales it to fit and runs it through the colour matching pipeline.
+- **GIF**: Upload an animated GIF. The file is parsed client-side into individual composited frames. A frame scrubber lets you preview any frame. All mosaic settings apply per-frame, and the result can be exported as a processed animated GIF.
 
-## 🛠️ Tech Stack
-Built using React, Vite, and HTML5 Canvas for high-performance rendering, with `gif.js` (and Web Workers) integrated for non-blocking in-browser GIF encoding.
+### Animation Export
+- **Wave Effect**: Keyframe two Bezier curve states and export an animation of the colour distribution transitioning between them.
+- **Looping Gradient**: Shifts the palette phase offset across frames to produce a seamlessly looping colour-cycle animation.
+- **Resolution Zoom**: Interpolates grid resolution and QuadTree threshold between two keyframes to animate a tile-reveal or zoom effect.
+- **Processed GIF Export**: Re-renders each frame of an uploaded GIF through the full mosaic pipeline and encodes the result as a downloadable animated GIF.
+
+### Other
+- **Project Save / Load**: Serialises the complete application state — settings, image data, and all mappings — to a `.json` file that can be restored in a later session.
+- **Bezier Curve Editor**: An interactive four-point cubic Bezier editor that controls how brightness values are remapped before tile matching. Applied globally across all modes.
+- **8×8 Palette Grid**: Visual selector for the gradient line used in palette-gradient and loop-animation modes.
+
+## Tech Stack
+
+React 19 and Vite, rendered entirely on HTML5 Canvas with no WebGL dependency. GIF encoding uses `gif.js` with Web Workers for non-blocking operation. Animated GIF parsing uses `gifuct-js`.
