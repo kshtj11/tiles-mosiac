@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Image as ImageIcon, Type, LayoutGrid, Layers, Upload, Download } from 'lucide-react';
+import { Image as ImageIcon, Type, LayoutGrid, Layers, Upload, Download, Film } from 'lucide-react';
 import './Sidebar.css';
+import { parseGIF, decompressFrames } from 'gifuct-js';
+import { compositeGifFramesAsync } from '../utils/gif';
 
 
 
@@ -23,16 +25,15 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
   const [exportProgress, setExportProgress] = useState(null);
   const [outputFps, setOutputFps] = useState(10);
   const [originalFps, setOriginalFps] = useState(null);
+  const [inputTab, setInputTab] = useState('text'); // 'text' | 'image' | 'gif'
 
-  // Compute original FPS whenever a GIF is loaded
+  // Sync originalFps when a GIF is loaded
   useEffect(() => {
-    if (selectedImage && selectedImage.type === 'gif' && selectedImage.frames && selectedImage.frames.length > 0) {
-      // delay is in ms per frame; use first frame's delay as representative
+    if (selectedImage && selectedImage.type === 'gif' && selectedImage.frames?.length > 0) {
       const firstDelay = selectedImage.frames[0]?.delay || 100;
       setOriginalFps(Math.round(1000 / firstDelay));
-      setOutputFps(Math.round(1000 / firstDelay)); // Default output to match source
-    } else {
-      setOriginalFps(null);
+      setOutputFps(Math.round(1000 / firstDelay));
+      setInputTab('gif');
     }
   }, [selectedImage]);
 
@@ -45,13 +46,40 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
     onSettingsChange(prev => ({ ...prev, [key]: value }));
   };
 
-  const handleImageChange = (e) => {
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
-    if (file) {
+    if (!file) return;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    if (file.type === 'image/gif') {
+      try {
+        setExportProgress('Parsing GIF...');
+        const arrayBuffer = await file.arrayBuffer();
+        const parsed = parseGIF(arrayBuffer);
+        const rawFrames = decompressFrames(parsed, true);
+        const width = parsed.lsd.width;
+        const height = parsed.lsd.height;
+        setExportProgress(`Compositing ${rawFrames.length} frames...`);
+        const compositedFrames = await compositeGifFramesAsync(
+          rawFrames, width, height,
+          (i, total) => setExportProgress(`Compositing frame ${i + 1}/${total}...`)
+        );
+        setExportProgress(null);
+        const url = compositedFrames[0].canvas.toDataURL();
+        onImageUpload({ type: 'gif', url, frames: compositedFrames });
+        updateSetting('mode', 'image');
+        setInputTab('gif');
+      } catch (err) {
+        console.error('GIF parse error:', err);
+        setExportProgress('Failed to parse GIF');
+        setTimeout(() => setExportProgress(null), 3000);
+      }
+    } else {
       const reader = new FileReader();
       reader.onload = (event) => {
         onImageUpload(event.target.result);
         updateSetting('mode', 'image');
+        setInputTab('image');
       };
       reader.readAsDataURL(file);
     }
@@ -258,17 +286,23 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
       <div className="sidebar-section">
         <h3>Input Mode</h3>
         <div className="mode-toggle">
-          <button 
-            className={settings.mode === 'text' ? 'active' : ''} 
-            onClick={() => updateSetting('mode', 'text')}
+          <button
+            className={inputTab === 'text' ? 'active' : ''}
+            onClick={() => { setInputTab('text'); updateSetting('mode', 'text'); }}
           >
             <Type size={18} /> Text
           </button>
-          <button 
-            className={settings.mode === 'image' ? 'active' : ''} 
-            onClick={() => updateSetting('mode', 'image')}
+          <button
+            className={inputTab === 'image' ? 'active' : ''}
+            onClick={() => { setInputTab('image'); updateSetting('mode', 'image'); }}
           >
             <ImageIcon size={18} /> Image
+          </button>
+          <button
+            className={inputTab === 'gif' ? 'active' : ''}
+            onClick={() => { setInputTab('gif'); updateSetting('mode', 'image'); }}
+          >
+            <Film size={18} /> GIF
           </button>
         </div>
       </div>
@@ -457,39 +491,39 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
       )}
 
 
-      {settings.mode === 'image' && (
+      {inputTab === 'image' && (
         <div className="sidebar-section">
           <h3>Image Input</h3>
           <button className="upload-btn" onClick={() => fileInputRef.current.click()} style={{ marginBottom: '16px' }}>
             <Upload size={18} /> Upload Image
           </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            style={{ display: 'none' }} 
-            accept="image/*" 
-            onChange={handleImageChange} 
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept="image/*"
+            onChange={handleImageChange}
           />
-          
+
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Color Mapping Engine</label>
           <div className="mode-toggle">
-            <button 
-              className={settings.imageMappingType !== 'gradient' ? 'active' : ''} 
+            <button
+              className={settings.imageMappingType !== 'gradient' ? 'active' : ''}
               onClick={() => updateSetting('imageMappingType', 'direct')}
             >
               Direct Color Match
             </button>
-            <button 
-              className={settings.imageMappingType === 'gradient' ? 'active' : ''} 
+            <button
+              className={settings.imageMappingType === 'gradient' ? 'active' : ''}
               onClick={() => updateSetting('imageMappingType', 'gradient')}
             >
               Palette Gradient Map
             </button>
           </div>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', lineHeight: 1.4 }}>
-            {settings.imageMappingType === 'gradient' 
-              ? 'Converts the image to B&W luminosity, then strictly applies the selected tiles drawn along the gradient line.' 
-              : 'Finds the closest exact color match for every tile. Adjust the global Gradient Curve to non-linearly shift the brightness values.'}
+            {settings.imageMappingType === 'gradient'
+              ? 'Converts to B&W luminosity, then maps tiles along the gradient line.'
+              : 'Finds the closest exact colour match. Adjust the Gradient Curve to shift brightness non-linearly.'}
           </p>
         </div>
       )}
@@ -499,174 +533,106 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
 
       
 
-      {vibrantMetadata && vibrantMetadata.length > 0 && (
+      {/* ── GIF INPUT MODE ── */}
+      {inputTab === 'gif' && (
         <div className="sidebar-section">
-          <h3>Vibrant Color Overrides</h3>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Select vibrant tiles below and drag them on the gradient map to force them to appear at specific brightness thresholds.
-          </p>
+          <h3>GIF Input</h3>
+          <button className="upload-btn" onClick={() => fileInputRef.current.click()} style={{ marginBottom: '16px' }}>
+            <Upload size={18} /> Upload GIF
+          </button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            style={{ display: 'none' }}
+            accept="image/gif"
+            onChange={handleImageChange}
+          />
 
-          {/* The Gradient Map */}
-          <div 
-            ref={vibrantMapRef}
-            style={{ 
-              position: 'relative', 
-              height: '40px', 
-              background: 'linear-gradient(to right, #000, #fff)', 
-              borderRadius: '4px', 
-              marginBottom: '16px', 
-              boxShadow: 'inset 0 0 4px rgba(0,0,0,0.5)',
-              userSelect: 'none'
-            }}
-          >
-            {settings.vibrantStops && Object.keys(settings.vibrantStops).map(id => {
-              const stop = settings.vibrantStops[id];
-              const tile = vibrantMetadata.find(v => v.id === id);
-              if (!tile) return null;
-              return (
-                <div 
-                  key={id} 
-                  style={{ 
-                    position: 'absolute', 
-                    left: `${stop.t * 100}%`, 
-                    top: '50%', 
-                    transform: 'translate(-50%, -50%)',
-                    width: '32px', height: '32px',
-                    backgroundImage: `url("${import.meta.env.BASE_URL}tiles-vibrant/resized/64/${encodeURIComponent(tile.filename)}")`,
-                    backgroundSize: 'cover',
-                    border: '2px solid var(--accent)',
-                    borderRadius: '50%',
-                    cursor: 'grab',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.5)',
-                    zIndex: dragging === `vibrant_${id}` ? 100 : 10
-                  }}
-                  onPointerDown={(e) => handlePointerDown(e, `vibrant_${id}`)}
-                />
-              )
-            })}
-          </div>
+          {selectedImage && selectedImage.type === 'gif' && selectedImage.frames?.length > 0 ? (
+            <>
+              {/* Info bar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '16px', padding: '8px 10px', background: 'var(--bg-darker)', borderRadius: '6px' }}>
+                <span>🎞 {selectedImage.frames.length} frames loaded</span>
+                {originalFps && <span>~{originalFps} fps original</span>}
+              </div>
 
-          {/* Spread Slider */}
-          <div className="input-group">
-            <div className="slider-header">
-              <label>Override Spread Tolerance</label>
-              <span>{Math.round(settings.vibrantSpread * 100)}%</span>
-            </div>
-            <input 
-              type="range" 
-              min="0.01" max="1" step="0.01" 
-              value={settings.vibrantSpread} 
-              onChange={(e) => updateSetting('vibrantSpread', parseFloat(e.target.value))} 
-            />
-          </div>
-
-          {/* The Vibrant Palette Toggles */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(40px, 1fr))', gap: '8px', marginTop: '12px' }}>
-            {vibrantMetadata.map(tile => {
-              const isActive = settings.vibrantStops && !!settings.vibrantStops[tile.id];
-              return (
-                <div 
-                  key={tile.id}
-                  onClick={() => {
-                    const newStops = { ...(settings.vibrantStops || {}) };
-                    if (isActive) {
-                      delete newStops[tile.id];
-                    } else {
-                      newStops[tile.id] = { t: 0.5 };
-                    }
-                    updateSetting('vibrantStops', newStops);
-                  }}
-                  title={`Toggle override for tile ${tile.id}`}
-                  style={{
-                    aspectRatio: '1',
-                    backgroundImage: `url("${import.meta.env.BASE_URL}tiles-vibrant/resized/64/${encodeURIComponent(tile.filename)}")`,
-                    backgroundSize: 'cover',
-                    border: isActive ? '2px solid var(--accent)' : '2px solid transparent',
-                    opacity: isActive ? 1 : 0.4,
-                    cursor: 'pointer',
-                    borderRadius: '4px',
-                    transition: 'all 0.2s ease'
-                  }}
-                />
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {settings.mode === 'image' && settings.imagePalette && settings.imagePalette.length > 0 && (
-        <div className="sidebar-section">
-          <h3>Image Palette Overrides</h3>
-          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            Map dominant colors from the image to specific tiles.
-          </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {settings.imagePalette.map((color, i) => {
-              const key = `${color.r},${color.g},${color.b}`;
-              const mappedTileId = settings.paletteMappings?.[key];
-              const mappedTile = mappedTileId ? allTiles.find(t => t.id === mappedTileId) : null;
-              
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{ width: '32px', height: '32px', backgroundColor: `rgb(${color.r},${color.g},${color.b})`, border: '1px solid var(--border)', borderRadius: '4px' }} />
-                  <span style={{ color: 'var(--text-muted)' }}>&rarr;</span>
-                  <div 
-                     style={{ 
-                       width: '32px', height: '32px', 
-                       border: '1px solid var(--border)', 
-                       borderRadius: '4px',
-                       backgroundImage: mappedTile ? `url("${import.meta.env.BASE_URL}${mappedTile.isVibrant ? 'tiles-vibrant' : 'tiles'}/resized/64/${encodeURIComponent(mappedTile.filename)}")` : 'none',
-                       backgroundSize: 'cover',
-                       cursor: 'pointer',
-                       display: 'flex', alignItems: 'center', justifyContent: 'center',
-                       fontSize: '10px',
-                       color: 'var(--text-muted)',
-                       backgroundColor: mappedTile ? 'transparent' : 'var(--bg-dark)'
-                     }}
-                     onClick={() => setSelectingForColor(selectingForColor === key ? null : key)}
-                  >
-                    {!mappedTile && "None"}
-                  </div>
+              {/* Frame scrubber */}
+              <div className="input-group">
+                <div className="slider-header">
+                  <label>Preview Frame</label>
+                  <span>{(settings.gifFrameIndex || 0) + 1} / {selectedImage.frames.length}</span>
                 </div>
-              );
-            })}
-          </div>
-          
-          {selectingForColor && (
-            <div style={{ marginTop: '12px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 'bold' }}>Select Tile</span>
-                <button 
-                  onClick={() => updateSetting('paletteMappings', { ...settings.paletteMappings, [selectingForColor]: null })}
-                  style={{ background: 'transparent', border: '1px solid var(--border)', color: 'var(--text)', padding: '4px 8px', borderRadius: '4px', cursor: 'pointer', fontSize: '10px' }}
+                <input
+                  type="range"
+                  min="0"
+                  max={selectedImage.frames.length - 1}
+                  value={settings.gifFrameIndex || 0}
+                  onChange={e => updateSetting('gifFrameIndex', parseInt(e.target.value))}
+                />
+              </div>
+
+              {/* Color mapping */}
+              <div className="input-group" style={{ marginTop: '12px' }}>
+                <label style={{ fontWeight: 'bold', marginBottom: '8px', display: 'block' }}>Color Mapping Engine</label>
+                <div className="mode-toggle">
+                  <button
+                    className={settings.imageMappingType !== 'gradient' ? 'active' : ''}
+                    onClick={() => updateSetting('imageMappingType', 'direct')}
+                  >
+                    Direct Color Match
+                  </button>
+                  <button
+                    className={settings.imageMappingType === 'gradient' ? 'active' : ''}
+                    onClick={() => updateSetting('imageMappingType', 'gradient')}
+                  >
+                    Palette Gradient Map
+                  </button>
+                </div>
+              </div>
+
+              {/* Export processed GIF */}
+              <div style={{ marginTop: '16px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
+                <label style={{ display: 'block', marginBottom: '6px', fontWeight: 'bold' }}>Export Processed GIF</label>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  Re-render all {selectedImage.frames.length} frames through the mosaic pipeline and download.
+                </p>
+                <div className="input-group" style={{ marginBottom: '12px' }}>
+                  <div className="slider-header">
+                    <label>Output Speed (FPS)</label>
+                    <span>{outputFps} fps</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1" max="60"
+                    value={outputFps}
+                    onChange={e => setOutputFps(parseInt(e.target.value))}
+                  />
+                  {originalFps && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>Original: ~{originalFps} fps</div>}
+                </div>
+                <button
+                  onClick={() => {
+                    if (!workspaceRef.current?.exportGifInput) return;
+                    setExportProgress('Starting animated GIF export...');
+                    workspaceRef.current.exportGifInput(outputFps, (status) => {
+                      setExportProgress(status);
+                      if (status === 'Finished') setTimeout(() => setExportProgress(null), 2000);
+                    }).catch(err => {
+                      console.error(err);
+                      setExportProgress('Error exporting GIF');
+                      setTimeout(() => setExportProgress(null), 3000);
+                    });
+                  }}
+                  disabled={!!exportProgress}
+                  style={{ width: '100%', padding: '10px', background: 'var(--accent)', border: 'none', borderRadius: '6px', color: 'white', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', opacity: exportProgress ? 0.5 : 1 }}
                 >
-                  Clear Mapping
+                  Export Processed GIF
                 </button>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(32px, 1fr))', gap: '4px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }}>
-                {allTiles.map(tile => {
-                  const isSelected = settings.paletteMappings?.[selectingForColor] === tile.id;
-                  return (
-                    <div 
-                      key={tile.id}
-                      onClick={() => {
-                        updateSetting('paletteMappings', { ...settings.paletteMappings, [selectingForColor]: tile.id });
-                        setSelectingForColor(null);
-                      }}
-                      title={`Select tile ${tile.id}`}
-                      style={{
-                        aspectRatio: '1',
-                        backgroundImage: `url("${import.meta.env.BASE_URL}${tile.isVibrant ? 'tiles-vibrant' : 'tiles'}/resized/64/${encodeURIComponent(tile.filename)}")`,
-                        backgroundSize: 'cover',
-                        cursor: 'pointer',
-                        borderRadius: '2px',
-                        border: isSelected ? '2px solid var(--accent)' : '2px solid transparent'
-                      }}
-                    />
-                  )
-                })}
-              </div>
-            </div>
+            </>
+          ) : (
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', textAlign: 'center', padding: '24px 0' }}>
+              No GIF loaded. Upload a .gif file above.
+            </p>
           )}
         </div>
       )}
@@ -1063,43 +1029,8 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
             <div className="sidebar-section" style={{ marginTop: '24px' }}>
         <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px', marginBottom: '16px' }}>GIF Export & Animation Settings</h3>
         
-        {selectedImage && selectedImage.type === 'gif' && (
-          <div className="sidebar-section" style={{ marginBottom: '16px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
-            <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>Export Animated Input</label>
-            <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-              Export the uploaded GIF through the mosaic processor.
-            </p>
-            <div className="input-group" style={{ marginBottom: '12px' }}>
-              <label>Output Speed (FPS)</label>
-              <input 
-                type="range" 
-                min="1" max="60" 
-                value={outputFps} 
-                onChange={e => setOutputFps(parseInt(e.target.value))} 
-              />
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
-                <span>{outputFps} fps</span>
-                {originalFps && <span>(Original: ~{originalFps} fps)</span>}
-              </div>
-            </div>
-            <button className="primary-btn" onClick={() => {
-              if (workspaceRef.current && workspaceRef.current.exportGifInput) {
-                setExportProgress('Starting animated input export...');
-                workspaceRef.current.exportGifInput(outputFps, (status) => {
-                  setExportProgress(status);
-                  if (status === 'Finished') setTimeout(() => setExportProgress(null), 2000);
-                }).catch(err => {
-                  console.error(err);
-                  setExportProgress('Error exporting GIF');
-                  setTimeout(() => setExportProgress(null), 3000);
-                });
-              }
-            }} disabled={!!exportProgress} style={{ background: 'var(--accent)', width: '100%', padding: '10px', opacity: exportProgress ? 0.5 : 1, border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer', fontWeight: 'bold' }}>
-               Export Processed GIF
-            </button>
-          </div>
-        )}
-        
+
+
         <div className="sidebar-section" style={{ marginBottom: '16px', background: 'var(--bg-darker)', padding: '12px', borderRadius: '8px' }}>
           <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>GIF Export (Wave Effect)</label>
           <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
