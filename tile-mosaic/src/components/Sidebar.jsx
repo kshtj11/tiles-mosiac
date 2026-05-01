@@ -21,6 +21,20 @@ export default function Sidebar({ settings, onSettingsChange, metadata, vibrantM
   const [resKeyframeB, setResKeyframeB] = useState(null);
   const [resGifFrames, setResGifFrames] = useState(30);
   const [exportProgress, setExportProgress] = useState(null);
+  const [outputFps, setOutputFps] = useState(10);
+  const [originalFps, setOriginalFps] = useState(null);
+
+  // Compute original FPS whenever a GIF is loaded
+  useEffect(() => {
+    if (selectedImage && selectedImage.type === 'gif' && selectedImage.frames && selectedImage.frames.length > 0) {
+      // delay is in ms per frame; use first frame's delay as representative
+      const firstDelay = selectedImage.frames[0]?.delay || 100;
+      setOriginalFps(Math.round(1000 / firstDelay));
+      setOutputFps(Math.round(1000 / firstDelay)); // Default output to match source
+    } else {
+      setOriginalFps(null);
+    }
+  }, [selectedImage]);
 
   const allTiles = [
     ...metadata.map(t => ({...t, type: t.type || 'normal', isVibrant: false})),
