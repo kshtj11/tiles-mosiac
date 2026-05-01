@@ -8,10 +8,7 @@ Thank you Akash and Karthikay for the documentation.
 
 # *ai overview* 
 
-TTM is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. 
-
-
-## Key Features
+TTM is a dynamic, browser-based web application that lets you seamlessly map real glazed tiles onto text or uploaded images. It supports standard grid layouts as well as adaptive quadtree subdivisions to capture varying levels of detail. Features-
 
 ### Color Mapping
 - **Direct Color Match**: Maps each tile region to the closest tile by Euclidean RGB distance. A Bezier curve editor lets you non-linearly shift brightness before matching.
